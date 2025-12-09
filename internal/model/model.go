@@ -13,15 +13,15 @@ const (
 type Interaction struct {
 	Actor  int
 	Target int
-	Type   string // e.g., "accuse", "claim"
+	Type   string // e.g., "accuse", "claim", "fact"
 	Result string // e.g., "Villager", "Seer", "Werewolf"
 }
 
-type PlayerInfo struct{
-	VillagerCount 	int
-	SearCount 		int
-	WarewolfCount	int
-	TotalPlayer 	int
+type PlayerInfo struct {
+	VillagerCount int
+	SearCount     int
+	WarewolfCount int
+	TotalPlayer   int
 }
 
 func (r Role) String() string {

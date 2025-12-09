@@ -6,9 +6,10 @@ import (
 	"github.com/Yurills/villager-handbook/internal/engine"
 
 	"github.com/Yurills/villager-handbook/internal/core"
+	"github.com/Yurills/villager-handbook/internal/model"
 )
 
-func main2() {
+func main() {
 	core.InputPlayer()
 	playerInfo := core.GetPlayerInfo()
 	players := []int{0, 1, 2, 3, 4}
@@ -20,9 +21,15 @@ func main2() {
 	e := engine.NewEngine(players, rules)
 
 	for i, world := range e.Worlds {
+		//Test fact
+		interaction := model.Interaction{
+			Actor:  0,
+			Target: 2,
+			Type:   "accuse",
+			Result: "Werewolf",
+		}
 
-		// This line will now trigger the Role.String() method for each role in the map.
-		fmt.Printf("World %d: %+v Weight: %f\n", i, world.Roles, world.Weight)
+		likelihood := engine.GetLikelihoodWeight(world.Roles, interaction)
+		fmt.Printf("World %d: %+v Likelihood: %f\n", i, world.Roles, likelihood)
 	}
-
 }
