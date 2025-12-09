@@ -17,8 +17,114 @@ func GetLikelihoodWeight(interaction model.Interaction) float64 {
 			if model.Role(interaction.Target) == model.Werewolf {
 				return WeightImpossible //werewolf would not accuse fellow werewolf
 			}
+			if model.Role(interaction.Target) == model.Villager || model.Role(interaction.Target) == model.Seer {
+				return WeightWolfLying //werewolf lies often
+			}
 
 		}
+		if model.Role(interaction.Actor) == model.Seer {
+			if model.Role(interaction.Target) == model.Werewolf {
+				return WeightTruth //seer tells truth
+			}
+			if model.Role(interaction.Target) == model.Villager || model.Role(interaction.Target) == model.Seer {
+				return WeightSeerLying //seer would lie as villager sometimes
+			}
+
+		}
+		if model.Role(interaction.Actor) == model.Villager {
+			if model.Role(interaction.Target) == model.Werewolf {
+				return WeightTruth //villager tells truth
+			}
+			if model.Role(interaction.Target) == model.Villager || model.Role(interaction.Target) == model.Seer {
+				return WeightVillagerLying //villager lie rarely
+			}
+
+		}
+	}
+	if interaction.Type == "accuse" && interaction.Result == "Seer" {
+		if model.Role(interaction.Actor) == model.Werewolf {
+			if model.Role(interaction.Target) == model.Seer {
+				return WeightTruth //werewolf tells truth
+			}
+			if model.Role(interaction.Target) == model.Werewolf || model.Role(interaction.Target) == model.Villager {
+				return WeightWolfLying //werewolf lies often
+			}
+
+		}
+		if model.Role(interaction.Actor) == model.Seer {
+			if model.Role(interaction.Target) == model.Seer {
+				return WeightTruth //seer tells truth
+			}
+			if model.Role(interaction.Target) == model.Werewolf || model.Role(interaction.Target) == model.Villager {
+				return WeightSeerLying //seer would lie as villager sometimes
+			}
+
+		}
+		if model.Role(interaction.Actor) == model.Villager {
+			if model.Role(interaction.Target) == model.Seer {
+				return WeightTruth //villager tells truth
+			}
+			if model.Role(interaction.Target) == model.Werewolf || model.Role(interaction.Target) == model.Villager {
+				return WeightVillagerLying //villager lie rarely
+			}
+
+		}
+	}
+	if interaction.Type == "accuse" && interaction.Result == "Villager" {
+		if model.Role(interaction.Actor) == model.Werewolf {
+			if model.Role(interaction.Target) == model.Villager {
+				return WeightTruth //werewolf tells truth
+			}
+			if model.Role(interaction.Target) == model.Werewolf || model.Role(interaction.Target) == model.Seer {
+				return WeightWolfLying //werewolf lies often
+			}
+
+		}
+		if model.Role(interaction.Actor) == model.Seer {
+			if model.Role(interaction.Target) == model.Villager {
+				return WeightTruth //seer tells truth
+			}
+			if model.Role(interaction.Target) == model.Werewolf || model.Role(interaction.Target) == model.Seer {
+				return WeightSeerLying //seer would lie as villager sometimes
+			}
+
+		}
+		if model.Role(interaction.Actor) == model.Villager {
+			if model.Role(interaction.Target) == model.Villager {
+				return WeightTruth //villager tells truth
+			}
+			if model.Role(interaction.Target) == model.Werewolf || model.Role(interaction.Target) == model.Seer {
+				return WeightVillagerLying //villager lie rarely
+			}
+
+		}
+	}
+
+	if interaction.Type == "claim" && interaction.Result == "Werewolf" {
+		return WeightImpossible //nobody would claim to be werewolf
+	}
+	if interaction.Type == "claim" && interaction.Result == "Seer" {
+		if model.Role(interaction.Actor) == model.Werewolf {
+			return WeightWolfLying //werewolf lies often
+		}
+		if model.Role(interaction.Actor) == model.Seer {
+			return WeightTruth //seer tell truth
+		}
+		if model.Role(interaction.Actor) == model.Villager {
+			return WeightVillagerLying //villager bait werewolf as seer
+		}
+	}
+	if interaction.Type == "claim" && interaction.Result == "Villager" {
+		if model.Role(interaction.Actor) == model.Werewolf {
+			return WeightWolfLying //werewolf lies often
+		}
+		if model.Role(interaction.Actor) == model.Seer {
+			return WeightSeerLying ////seer would lie as villager sometimes
+		}
+		if model.Role(interaction.Actor) == model.Villager {
+			return WeightTruth //villager tell truth
+		}
+
 	}
 	return WeightImpossible //unknown interaction type
 }
