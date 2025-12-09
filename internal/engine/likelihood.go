@@ -126,5 +126,31 @@ func GetLikelihoodWeight(interaction model.Interaction) float64 {
 		}
 
 	}
+
+	if interaction.Type == "fact" && interaction.Result == "Werewolf" {
+		if model.Role(interaction.Target) == model.Werewolf {
+			return WeightTruth
+		}
+		if model.Role(interaction.Target) == model.Seer || model.Role(interaction.Target) == model.Villager {
+			return WeightImpossible
+		}
+	}
+	if interaction.Type == "fact" && interaction.Result == "Seer" {
+		if model.Role(interaction.Target) == model.Seer {
+			return WeightTruth
+		}
+		if model.Role(interaction.Target) == model.Werewolf || model.Role(interaction.Target) == model.Villager {
+			return WeightImpossible
+		}
+	}
+	if interaction.Type == "fact" && interaction.Result == "Villager" {
+		if model.Role(interaction.Target) == model.Villager {
+			return WeightTruth
+		}
+		if model.Role(interaction.Target) == model.Seer || model.Role(interaction.Target) == model.Werewolf {
+			return WeightImpossible
+		}
+
+	}
 	return WeightImpossible //unknown interaction type
 }
