@@ -10,19 +10,15 @@ const (
 	WeightImpossible    = 0.0 //default for impossible cases
 )
 
-
-//by world
-func GetLikelihoodWeight(actorRole model.Role, targetRole model.Role, interaction model.Interaction) float64 {
+// by world
+func GetLikelihoodWeight(interaction model.Interaction) float64 {
 	if interaction.Type == "accuse" && interaction.Result == "Werewolf" {
-		if actorRole == model.Werewolf {
-			if targetRole == model.Werewolf {
+		if model.Role(interaction.Actor) == model.Werewolf {
+			if model.Role(interaction.Target) == model.Werewolf {
 				return WeightImpossible //werewolf would not accuse fellow werewolf
 			}
-			if targetRole == model.Villager || targetRole == model.Seer {
-				return WeightWolfLying //werewolf lies often
-			}
 
-
+		}
 	}
 	return WeightImpossible //unknown interaction type
 }
