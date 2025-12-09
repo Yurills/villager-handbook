@@ -8,6 +8,7 @@ const (
 	WeightSeerLying     = 0.6 //seer would lie as villager sometimes
 	WeightVillagerLying = 0.1 //villager bait werewolf as seer (not oftern)
 	WeightImpossible    = 0.0 //default for impossible cases
+	NoWeight            = 1.0 //statement doesn't take into account.
 )
 
 // by world
@@ -27,27 +28,27 @@ func GetLikelihoodWeight(currentWorld []model.Role, interaction model.Interactio
 				return WeightTruth //seer tells truth
 			}
 			if currentWorld[interaction.Target] == model.Villager || currentWorld[interaction.Target] == model.Seer {
-				return WeightSeerLying //seer would lie as villager sometimes
+				return WeightImpossible //seer would not accuse villager or seer
 			}
 
 		}
 		if currentWorld[interaction.Actor] == model.Villager {
 			if currentWorld[interaction.Target] == model.Werewolf {
-				return WeightTruth //villager tells truth
+				return NoWeight //villager might accuse werewolf or not
 			}
 			if currentWorld[interaction.Target] == model.Villager || currentWorld[interaction.Target] == model.Seer {
-				return WeightVillagerLying //villager lie rarely
+				return NoWeight //villager might accuse villager or seer or not
 			}
 
 		}
 	}
 	if interaction.Type == "accuse" && interaction.Result == "Seer" {
 		if currentWorld[interaction.Actor] == model.Werewolf {
-			if currentWorld[interaction.Target] == model.Seer {
-				return WeightTruth //werewolf tells truth
+			if currentWorld[interaction.Target] == model.Seer || currentWorld[interaction.Target] == model.Villager {
+				return NoWeight //means nothing, werewolf might accuse anyone
 			}
-			if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Villager {
-				return WeightWolfLying //werewolf lies often
+			if currentWorld[interaction.Target] == model.Werewolf {
+				return WeightWolfLying //werewolf protects fellow werewolf
 			}
 
 		}
@@ -62,20 +63,20 @@ func GetLikelihoodWeight(currentWorld []model.Role, interaction model.Interactio
 		}
 		if currentWorld[interaction.Actor] == model.Villager {
 			if currentWorld[interaction.Target] == model.Seer {
-				return WeightTruth //villager tells truth
+				return NoWeight //villager tells truth
 			}
 			if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Villager {
-				return WeightVillagerLying //villager lie rarely
+				return NoWeight //villager might accuse werewolf or not
 			}
 
 		}
 	}
 	if interaction.Type == "accuse" && interaction.Result == "Villager" {
 		if currentWorld[interaction.Actor] == model.Werewolf {
-			if currentWorld[interaction.Target] == model.Villager {
-				return WeightTruth //werewolf tells truth
+			if currentWorld[interaction.Target] == model.Villager || currentWorld[interaction.Target] == model.Seer {
+				return NoWeight //werewolf tells truth
 			}
-			if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Seer {
+			if currentWorld[interaction.Target] == model.Werewolf {
 				return WeightWolfLying //werewolf lies often
 			}
 
@@ -85,18 +86,18 @@ func GetLikelihoodWeight(currentWorld []model.Role, interaction model.Interactio
 				return WeightTruth //seer tells truth
 			}
 			if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Seer {
-				return WeightSeerLying //seer would lie as villager sometimes
+				return WeightImpossible //seer would lie as villager sometimes
 			}
 
-		}
-		if currentWorld[interaction.Actor] == model.Villager {
-			if currentWorld[interaction.Target] == model.Villager {
-				return WeightTruth //villager tells truth
-			}
-			if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Seer {
-				return WeightVillagerLying //villager lie rarely
-			}
+			if currentWorld[interaction.Actor] == model.Villager {
+				if currentWorld[interaction.Target] == model.Villager {
+					return NoWeight //villager tells truth
+				}
+				if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Seer {
+					return NoWeight //villager might accuse werewolf or not
+				}
 
+			}
 		}
 	}
 
@@ -122,7 +123,7 @@ func GetLikelihoodWeight(currentWorld []model.Role, interaction model.Interactio
 			return WeightSeerLying ////seer would lie as villager sometimes
 		}
 		if currentWorld[interaction.Actor] == model.Villager {
-			return WeightTruth //villager tell truth
+			return NoWeight //villager tell truth
 		}
 
 	}
