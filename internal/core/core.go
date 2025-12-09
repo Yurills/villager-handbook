@@ -2,6 +2,8 @@ package core
 
 import (
 	"github.com/Yurills/villager-handbook/internal/model"
+	// "github.com/Yurills/villager-handbook/internal/engine"
+
 	"fmt"
 )
 
@@ -21,8 +23,3 @@ func InputPlayer(){
 func GetPlayerInfo() model.PlayerInfo{
 	return player
 }
-
-func UpdateRound(){
-	
-}
-
