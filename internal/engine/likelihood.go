@@ -5,153 +5,102 @@ import "github.com/Yurills/villager-handbook/internal/model"
 const (
 	WeightTruth         = 1.0
 	WeightWolfLying     = 0.8 //werewolf lie often
+	WeightWolfBussing   = 0.2 //werewolf accuse fellow werewolf sometimes (distancing strategy)
 	WeightSeerLying     = 0.6 //seer would lie as villager sometimes
 	WeightVillagerLying = 0.1 //villager bait werewolf as seer (not oftern)
 	WeightImpossible    = 0.0 //default for impossible cases
-	NoWeight            = 1.0 //statement doesn't take into account.
+	NoWeight            = 1.0 //statement doesn't take into account (e.g. villager accuse werewolf).
 )
 
 // by world
 func GetLikelihoodWeight(currentWorld []model.Role, interaction model.Interaction) float64 {
-	if interaction.Type == "accuse" && interaction.Result == "Werewolf" {
-		if currentWorld[interaction.Actor] == model.Werewolf {
-			if currentWorld[interaction.Target] == model.Werewolf {
-				return WeightImpossible //werewolf would not accuse fellow werewolf
-			}
-			if currentWorld[interaction.Target] == model.Villager || currentWorld[interaction.Target] == model.Seer {
-				return WeightWolfLying //werewolf lies often
-			}
-
+	//1. Handle Hard Facts (Game Engine Events)
+	//Logic: if the world doesn't match the hard fact, it's impossible.
+	if interaction.Type == "fact" {
+		actualRole := currentWorld[interaction.Target]
+		// Convert string Result to Enum (Assuming interaction.Result matches model.Role)
+		// You might need a helper here to convert string "Werewolf" -> model.Werewolf
+		if roleMatches(actualRole, interaction.Result) {
+			return WeightTruth
 		}
-		if currentWorld[interaction.Actor] == model.Seer {
-			if currentWorld[interaction.Target] == model.Werewolf {
-				return WeightTruth //seer tells truth
-			}
-			if currentWorld[interaction.Target] == model.Villager || currentWorld[interaction.Target] == model.Seer {
-				return WeightImpossible //seer would not accuse villager or seer
-			}
-
-		}
-		if currentWorld[interaction.Actor] == model.Villager {
-			if currentWorld[interaction.Target] == model.Werewolf {
-				return NoWeight //villager might accuse werewolf or not
-			}
-			if currentWorld[interaction.Target] == model.Villager || currentWorld[interaction.Target] == model.Seer {
-				return NoWeight //villager might accuse villager or seer or not
-			}
-
-		}
+		return WeightImpossible
 	}
-	if interaction.Type == "accuse" && interaction.Result == "Seer" {
-		if currentWorld[interaction.Actor] == model.Werewolf {
-			if currentWorld[interaction.Target] == model.Seer || currentWorld[interaction.Target] == model.Villager {
-				return NoWeight //means nothing, werewolf might accuse anyone
-			}
-			if currentWorld[interaction.Target] == model.Werewolf {
-				return WeightWolfLying //werewolf protects fellow werewolf
-			}
 
-		}
-		if currentWorld[interaction.Actor] == model.Seer {
-			if currentWorld[interaction.Target] == model.Seer {
-				return WeightTruth //seer tells truth
-			}
-			if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Villager {
-				return WeightSeerLying //seer would lie as villager sometimes
-			}
+	actorRole := currentWorld[interaction.Actor]
+	targetRole := currentWorld[interaction.Target]
 
-		}
-		if currentWorld[interaction.Actor] == model.Villager {
-			if currentWorld[interaction.Target] == model.Seer {
-				return NoWeight //villager tells truth
-			}
-			if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Villager {
-				return NoWeight //villager might accuse werewolf or not
-			}
+	// 2. Handle Accusations ("I think Target is X")
+	if interaction.Type == "accuse" {
+		// CONTEXT: Actor says "Target is [Result]"
+		accusedRole := interaction.Result // e.g. "Werewolf"
 
-		}
-	}
-	if interaction.Type == "accuse" && interaction.Result == "Villager" {
-		if currentWorld[interaction.Actor] == model.Werewolf {
-			if currentWorld[interaction.Target] == model.Villager || currentWorld[interaction.Target] == model.Seer {
-				return NoWeight //werewolf tells truth
-			}
-			if currentWorld[interaction.Target] == model.Werewolf {
-				return WeightWolfLying //werewolf lies often
-			}
-
-		}
-		if currentWorld[interaction.Actor] == model.Seer {
-			if currentWorld[interaction.Target] == model.Villager {
-				return WeightTruth //seer tells truth
-			}
-			if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Seer {
-				return WeightImpossible //seer would lie as villager sometimes
-			}
-
-			if currentWorld[interaction.Actor] == model.Villager {
-				if currentWorld[interaction.Target] == model.Villager {
-					return NoWeight //villager tells truth
+		// CASE A: Accusing someone of being a WEREWOLF
+		if accusedRole == "Werewolf" {
+			switch actorRole {
+			case model.Werewolf:
+				if targetRole == model.Werewolf {
+					return WeightWolfBussing //wolves do accuse each other
 				}
-				if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Seer {
-					return NoWeight //villager might accuse werewolf or not
-				}
+				//wolf accusing Non-wolf
+				return WeightWolfLying //wolves lie often
 
+			case model.Seer:
+				if targetRole == model.Werewolf {
+					return WeightTruth //seer found a wolf
+				}
+				return WeightImpossible //seer wouldn't lie and call a Good person Evil
+
+			case model.Villager:
+				return NoWeight //villagers guess randomly
 			}
 		}
 	}
 
-	if interaction.Type == "claim" && interaction.Result == "Werewolf" {
-		return WeightImpossible //nobody would claim to be werewolf
-	}
-	if interaction.Type == "claim" && interaction.Result == "Seer" {
-		if currentWorld[interaction.Actor] == model.Werewolf {
-			return WeightWolfLying //werewolf lies often
-		}
-		if currentWorld[interaction.Actor] == model.Seer {
-			return WeightTruth //seer tell truth
-		}
-		if currentWorld[interaction.Actor] == model.Villager {
-			return WeightVillagerLying //villager bait werewolf as seer
-		}
-	}
-	if interaction.Type == "claim" && interaction.Result == "Villager" {
-		if currentWorld[interaction.Actor] == model.Werewolf {
-			return WeightWolfLying //werewolf lies often
-		}
-		if currentWorld[interaction.Actor] == model.Seer {
-			return WeightSeerLying ////seer would lie as villager sometimes
-		}
-		if currentWorld[interaction.Actor] == model.Villager {
-			return NoWeight //villager tell truth
-		}
+	//3. Handle Role Claim ("I am X")
+	if interaction.Type == "claim" {
+		claimedRole := interaction.Result // e.g. "Seer"
 
-	}
-
-	if interaction.Type == "fact" && interaction.Result == "Werewolf" {
-		if currentWorld[interaction.Target] == model.Werewolf {
-			return WeightTruth
-		}
-		if currentWorld[interaction.Target] == model.Seer || currentWorld[interaction.Target] == model.Villager {
-			return WeightImpossible
-		}
-	}
-	if interaction.Type == "fact" && interaction.Result == "Seer" {
-		if currentWorld[interaction.Target] == model.Seer {
-			return WeightTruth
-		}
-		if currentWorld[interaction.Target] == model.Werewolf || currentWorld[interaction.Target] == model.Villager {
-			return WeightImpossible
-		}
-	}
-	if interaction.Type == "fact" && interaction.Result == "Villager" {
-		if currentWorld[interaction.Target] == model.Villager {
-			return WeightTruth
-		}
-		if currentWorld[interaction.Target] == model.Seer || currentWorld[interaction.Target] == model.Werewolf {
+		// CASE A: Claiming Werewolf (Nobody does this usually)
+		if claimedRole == "Werewolf" {
 			return WeightImpossible
 		}
 
+		// CASE B: Claiming Seer
+		if claimedRole == "Seer" {
+			switch actorRole {
+			case model.Werewolf:
+				return WeightWolfLying //wolf lying as seer
+			case model.Seer:
+				return WeightTruth //seer telling truth
+			case model.Villager:
+				return WeightVillagerLying //villager bluffing as seer
+			}
+		}
+		// CASE C: Claiming Villager
+		if claimedRole == "Villager" {
+			switch actorRole {
+			case model.Werewolf:
+				return WeightWolfLying //wolf lying as villager
+			case model.Seer:
+				return WeightSeerLying //seer hiding
+			case model.Villager:
+				return WeightTruth //villager telling truth
+			}
+		}
+
 	}
-	return WeightImpossible //unknown interaction type
+	return WeightImpossible //unknown
+}
+
+func roleMatches(r model.Role, roleStr string) bool {
+	switch roleStr {
+	case "Villager":
+		return r == model.Villager
+	case "Seer":
+		return r == model.Seer
+	case "Werewolf":
+		return r == model.Werewolf
+	default:
+		return false
+	}
 }
