@@ -30,6 +30,63 @@ func NewEngine(players []int, rules GameRule) *Engine {
 	return e
 }
 
+func (e *Engine) ProcessMove(move model.Interaction) {
+	totalWeight := 0.0
+
+	for i := range e.Worlds {
+		likelihood := GetLikelihoodWeight(e.Worlds[i].Roles, move)
+		e.Worlds[i].Weight *= likelihood
+		totalWeight += e.Worlds[i].Weight
+	}
+
+	//normalize weights
+	if totalWeight > 0 {
+		for i := range e.Worlds {
+			e.Worlds[i].Weight /= totalWeight
+		}
+	} else {
+		//all worlds are impossible, reset weights uniformly
+		uniformWeight := 1.0 / float64(len(e.Worlds))
+		for i := range e.Worlds {
+			e.Worlds[i].Weight = uniformWeight
+		}
+	}
+}
+
+func (e *Engine) GetStats() []model.PlayerStat {
+
+	//Outer Key: Player ID (int)
+	//Inner Key: Role
+	//Value: Accumulated weight
+	playerRoleTotals := make(map[int]map[model.Role]float64)
+
+	for _, id := range e.Players {
+		playerRoleTotals[id] = make(map[model.Role]float64)
+	}
+
+	for _, world := range e.Worlds {
+		if world.Weight <= 0 {
+			continue
+		}
+
+		for playerID, role := range world.Roles {
+			playerRoleTotals[playerID][role] += world.Weight
+		}
+	}
+
+	var playerStats []model.PlayerStat
+
+	for _, id := range e.Players {
+		stats := model.PlayerStat{
+			ID:                id,
+			RoleProbabilities: playerRoleTotals[id],
+		}
+		playerStats = append(playerStats, stats)
+	}
+	return playerStats
+
+}
+
 func (e *Engine) generateWorlds(rules GameRule) {
 	// create deck consisting of all roles
 	deck := []model.Role{}

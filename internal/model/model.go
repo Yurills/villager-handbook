@@ -36,3 +36,12 @@ func (r Role) String() string {
 		return fmt.Sprintf("Role(%d)", r)
 	}
 }
+
+type PlayerStat struct {
+	ID                int
+	RoleProbabilities map[Role]float64
+}
+
+func (ps PlayerStat) String() string {
+	return fmt.Sprintf("Player %d: %v", ps.ID, ps.RoleProbabilities)
+}
