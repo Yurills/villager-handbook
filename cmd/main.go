@@ -4,14 +4,18 @@ import (
 	"fmt"
 
 	"github.com/Yurills/villager-handbook/internal/engine"
+
+	"github.com/Yurills/villager-handbook/internal/core"
 )
 
 func main() {
+	core.InputPlayer()
+	playerInfo := core.GetPlayerInfo()
 	players := []int{0, 1, 2, 3, 4}
 	rules := engine.GameRule{
-		NumVillagers:  3,
-		NumSeers:      1,
-		NumWerewolves: 1,
+		NumVillagers:  playerInfo.VillagerCount,
+		NumSeers:      playerInfo.SearCount,
+		NumWerewolves: playerInfo.WarewolfCount,
 	}
 	e := engine.NewEngine(players, rules)
 

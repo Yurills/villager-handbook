@@ -17,6 +17,13 @@ type Interaction struct {
 	Result string // e.g., "Villager", "Seer", "Werewolf"
 }
 
+type PlayerInfo struct{
+	VillagerCount 	int
+	SearCount 		int
+	WarewolfCount	int
+	TotalPlayer 	int
+}
+
 func (r Role) String() string {
 	switch r {
 	case Villager:
