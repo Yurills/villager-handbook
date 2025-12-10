@@ -8,10 +8,43 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	// Your internal packages
 	"github.com/Yurills/villager-handbook/internal/engine"
 	"github.com/Yurills/villager-handbook/internal/model"
+)
+
+// ─── STYLES ─────────────────────────────────────────
+
+var (
+	titleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFD166")).
+			Background(lipgloss.Color("#073B4C")).
+			Padding(1, 2).
+			Bold(true).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#FFD166"))
+
+	sectionStyle = lipgloss.NewStyle().
+			MarginTop(1).
+			Padding(1, 2).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#118AB2"))
+
+	menuCursorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#EF476F")).
+			Bold(true)
+
+	menuItemStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#06D6A0"))
+
+	feedbackStyle = lipgloss.NewStyle().
+			Padding(1, 2).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#FFD166")).
+			Foreground(lipgloss.Color("#073B4C")).
+			Background(lipgloss.Color("#FFEFD5"))
 )
 
 // --- 1. APP STATES ---
@@ -23,7 +56,7 @@ const (
 	stepInputSear          // Setup: Seers
 	stepInputWarewolf      // Setup: Wolves
 	stepGameMenu           // Main Menu
-	
+
 	// New States for "Add Event" Flow
 	stepEventActor
 	stepEventTarget
@@ -35,11 +68,11 @@ const (
 type bubbleModel struct {
 	step      step
 	textInput textinput.Model
-	
+
 	// Data Storage
-	playerInfo PlayerInfo          // Stores Setup counts
-	gameEngine *engine.Engine      // Stores the actual Game Engine
-	tempEvent  model.Interaction   // Stores input while creating an event
+	playerInfo PlayerInfo        // Stores Setup counts
+	gameEngine *engine.Engine    // Stores the actual Game Engine
+	tempEvent  model.Interaction // Stores input while creating an event
 
 	// Menu UI
 	menuCursor int
@@ -55,18 +88,21 @@ type PlayerInfo struct {
 	TotalPlayer   int
 }
 
+// Log storage
+var logEvents []string
+
 func initialModel() bubbleModel {
 	ti := textinput.New()
 	ti.Placeholder = "Type here..."
 	ti.Focus()
-	ti.CharLimit = 20
-	ti.Width = 20
+	ti.CharLimit = 50
+	ti.Width = 50
 
 	return bubbleModel{
 		step:       stepWelcome,
 		textInput:  ti,
 		playerInfo: PlayerInfo{},
-		menuItems:  []string{"Add Event", "Show Recommend", "Exit"},
+		menuItems:  []string{"Add Event", "Show Recommend", "Show Stat", "Show Log", "Exit"},
 	}
 }
 
@@ -106,10 +142,10 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.step = stepInputWarewolf
 				} else if m.step == stepInputWarewolf {
 					m.playerInfo.WarewolfCount = val // Note: User code used TotalPlayer for wolves in rules? Adjust if needed.
-					
+
 					// FINAL SETUP CALCULATION
 					m.playerInfo.TotalPlayer = m.playerInfo.VillagerCount + m.playerInfo.SearCount + m.playerInfo.WarewolfCount
-					
+
 					// --- INITIALIZE YOUR ENGINE HERE ---
 					players := make([]int, m.playerInfo.TotalPlayer)
 					for i := 0; i < m.playerInfo.TotalPlayer; i++ {
@@ -119,12 +155,12 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					rules := engine.GameRule{
 						NumVillagers:  m.playerInfo.VillagerCount,
 						NumSeers:      m.playerInfo.SearCount,
-						NumWerewolves: m.playerInfo.WarewolfCount, 
+						NumWerewolves: m.playerInfo.WarewolfCount,
 					}
-					
+
 					// Store the engine in the model
 					m.gameEngine = engine.NewEngine(players, rules)
-					
+
 					m.step = stepGameMenu
 					m.feedback = "Game Engine Initialized. Ready."
 				}
@@ -139,29 +175,53 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.step == stepGameMenu {
 			switch msg.String() {
 			case "up", "k":
-				if m.menuCursor > 0 { m.menuCursor-- }
+				if m.menuCursor > 0 {
+					m.menuCursor--
+				}
 			case "down", "j":
-				if m.menuCursor < len(m.menuItems)-1 { m.menuCursor++ }
+				if m.menuCursor < len(m.menuItems)-1 {
+					m.menuCursor++
+				}
 			case "enter":
 				selected := m.menuItems[m.menuCursor]
-				
+
 				if selected == "Exit" {
 					return m, tea.Quit
-				
+
 				} else if selected == "Add Event" {
 					// Start the Event Input Flow
 					m.step = stepEventActor
 					m.textInput.Placeholder = "Actor ID (e.g. 0)"
 					m.textInput.Reset()
-				
+
 				} else if selected == "Show Recommend" {
-					// --- CALL YOUR ENGINE STATS ---
-					stats := m.gameEngine.GetStats()
-					
-					// Format the stats slice into a single string for display
+					m.gameEngine.PredictMove()
+					stats := m.gameEngine.GetPredictStat()
+					recommendations := m.gameEngine.GetRecommend(stats, m.playerInfo.WarewolfCount)
+
 					var sb strings.Builder
 					sb.WriteString("=== RECOMMENDATIONS ===\n")
+					sb.WriteString(fmt.Sprintf("%s\n", recommendations))
+					m.feedback = sb.String()
+
+				} else if selected == "Show Stat" {
+					// --- CALL YOUR ENGINE STATS ---
+					stats := m.gameEngine.GetStats()
+
+					// Format the stats slice into a single string for display
+					var sb strings.Builder
+					sb.WriteString("=== STATS ===\n")
 					for _, s := range stats {
+						sb.WriteString(fmt.Sprintf("- %s\n", s))
+					}
+					m.feedback = sb.String()
+				} else if selected == "Show Log" {
+					// --- SHOW LOG ---
+					showLog := logEvents
+					// Format the logs into a single string for display
+					var sb strings.Builder
+					sb.WriteString("=== EVENT LOGS ===\n")
+					for _, s := range showLog {
 						sb.WriteString(fmt.Sprintf("- %s\n", s))
 					}
 					m.feedback = sb.String()
@@ -195,13 +255,15 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				case stepEventResult:
 					m.tempEvent.Result = input
-					
+
 					// --- EXECUTE MOVE IN ENGINE ---
 					m.gameEngine.ProcessMove(m.tempEvent)
-					
-					m.feedback = fmt.Sprintf("Processed: Actor %d %s Target %d -> %s", 
+
+					log := fmt.Sprintf("Processed: Actor %d %s Target %d -> %s",
 						m.tempEvent.Actor, m.tempEvent.Type, m.tempEvent.Target, m.tempEvent.Result)
-					
+
+					m.feedback = log
+					logEvents = append(logEvents, log) // Store log
 					// Return to menu
 					m.step = stepGameMenu
 				}
@@ -217,48 +279,79 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // --- 4. VIEW (RENDER) ---
 func (m bubbleModel) View() string {
-	s := strings.Builder{}
+	var out strings.Builder
 
 	switch m.step {
 	case stepWelcome:
-		s.WriteString("=== VILLAGER HANDBOOK ===\nPress Enter to Start")
+		return titleStyle.Render("VILLAGER HANDBOOK") + "\n\nPress Enter to Start"
 
 	case stepInputVillager:
-		s.WriteString("Enter Villager Count:\n" + m.textInput.View())
+		return sectionStyle.Render("Enter Villager Count:\n" + m.textInput.View())
 
 	case stepInputSear:
-		s.WriteString("Enter Seer Count:\n" + m.textInput.View())
+		return sectionStyle.Render("Enter Seer Count:\n" + m.textInput.View())
 
 	case stepInputWarewolf:
-		s.WriteString("Enter Werewolf Count:\n" + m.textInput.View())
+		return sectionStyle.Render("Enter Werewolf Count:\n" + m.textInput.View())
 
 	case stepGameMenu:
-		s.WriteString("=== MAIN MENU ===\n")
-		s.WriteString(fmt.Sprintf("Players: %d (v:%d s:%d w:%d) | Worlds: %d\n\n", 
-			m.playerInfo.TotalPlayer, m.playerInfo.VillagerCount, m.playerInfo.SearCount, m.playerInfo.WarewolfCount, len(m.gameEngine.Worlds)))
+		header := titleStyle.Render("MAIN MENU")
+		topbar := fmt.Sprintf(
+			"Players: %d (V:%d S:%d W:%d) | Worlds: %d\n",
+			m.playerInfo.TotalPlayer,
+			m.playerInfo.VillagerCount,
+			m.playerInfo.SearCount,
+			m.playerInfo.WarewolfCount,
+			len(m.gameEngine.Worlds),
+		)
+
+		var menu strings.Builder
 
 		for i, item := range m.menuItems {
 			cursor := " "
-			if m.menuCursor == i { cursor = ">" }
-			s.WriteString(fmt.Sprintf("%s %s\n", cursor, item))
+			if m.menuCursor == i {
+				cursor = menuCursorStyle.Render(">")
+			}
+			menu.WriteString(fmt.Sprintf("%s %s\n",
+				cursor, menuItemStyle.Render(item)))
 		}
-		
+
+		out.WriteString(header)
+		out.WriteString("\n")
+		out.WriteString(topbar)
+		out.WriteString("\n")
+		out.WriteString(sectionStyle.Render(menu.String()))
+
 		if m.feedback != "" {
-			s.WriteString("\n----------------\n" + m.feedback + "\n----------------")
+			out.WriteString("\n")
+			out.WriteString(feedbackStyle.Render(m.feedback))
 		}
+
+		return out.String()
 
 	// VIEW FOR EVENT INPUTS
 	case stepEventActor:
-		s.WriteString("Interaction: Who is acting? (Actor ID)\n" + m.textInput.View())
+		return sectionStyle.Render("Interaction: Who is acting? (Actor ID)\n" + m.textInput.View())
 	case stepEventTarget:
-		s.WriteString(fmt.Sprintf("Actor: %d\nInteraction: Who are they targeting? (Target ID)\n%s", m.tempEvent.Actor, m.textInput.View()))
+		return sectionStyle.Render(
+			fmt.Sprintf("Actor: %d\nInteraction: Who are they targeting? (Target ID)\n%s",
+				m.tempEvent.Actor,
+				m.textInput.View(),
+			),
+		)
 	case stepEventType:
-		s.WriteString(fmt.Sprintf("Actor: %d -> Target: %d\nInteraction: What is the action? (accuse, claim, fact)\n%s", m.tempEvent.Actor, m.tempEvent.Target, m.textInput.View()))
+		return sectionStyle.Render(
+			fmt.Sprintf("Actor: %d -> Target: %d\nInteraction: What is the action? (accuse, claim, fact)\n%s",
+				m.tempEvent.Actor, m.tempEvent.Target, m.textInput.View()),
+		)
 	case stepEventResult:
-		s.WriteString(fmt.Sprintf("Action: %s\nInteraction: What is the result/role? (Werewolf, Seer, Villager)\n%s", m.tempEvent.Type, m.textInput.View()))
+		return sectionStyle.Render(
+			fmt.Sprintf("Action: %s\nInteraction: What is the result/role? (Werewolf, Seer, Villager)\n%s",
+				m.tempEvent.Type, m.textInput.View()),
+		)
 	}
 
-	return s.String()
+	return out.String()
 }
 
 func main() {

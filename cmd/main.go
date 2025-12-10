@@ -3,21 +3,20 @@ package main
 import (
 	"fmt"
 
+	"github.com/Yurills/villager-handbook/internal/core"
 	"github.com/Yurills/villager-handbook/internal/engine"
 	"github.com/Yurills/villager-handbook/internal/model"
-	"github.com/Yurills/villager-handbook/internal/core"
 	// tea "github.com/charmbracelet/bubbletea"
 )
 
 func main2() {
 	core.InputPlayer()
 	playerInfo := core.GetPlayerInfo()
-	
+
 	players := make([]int, playerInfo.TotalPlayer)
 	for i := 0; i < playerInfo.TotalPlayer; i++ {
 		players[i] = i
 	}
-
 
 	// players := []int{0, 1, 2, 3, 4, 5}
 	rules := engine.GameRule{
@@ -116,7 +115,5 @@ func main2() {
 	// 		fmt.Printf("After Move - World %d (Impossible): %+v\n", i, world.Roles)
 	// 	}
 	// }
-
-	
 
 }
