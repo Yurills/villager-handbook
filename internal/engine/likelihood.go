@@ -134,7 +134,9 @@ func GetLikelihoodWeight(currentWorld []model.Role, interaction model.Interactio
 // Helper to match strings to Enum
 func roleMatches(r model.Role, roleStr string) bool {
 	switch roleStr {
-	case "villager", "good":
+	case "villager":
+		return r == model.Villager
+	case "good":
 		return r == model.Villager || r == model.Seer // "Good" covers both
 	case "seer":
 		return r == model.Seer

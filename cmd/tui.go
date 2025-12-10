@@ -224,6 +224,10 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					sb.WriteString("=== BEST INVESTIGATE CANDIDATES ===\n")
 					recommendation := GetVotingRecommend(stats)
 					sb.WriteString(fmt.Sprintf(recommendation))
+					// for i := range stats {
+					// 	sb.WriteString(fmt.Sprintf("- Player %d (Entropy: %.4f)\n",
+					// 		stats[i].ID, stats[i].Entropy))
+					// }
 					m.feedback = sb.String()
 
 				} else if selected == "Who to Vote" {
