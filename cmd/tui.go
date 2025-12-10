@@ -343,7 +343,7 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else if m.tempEvent.Type == "claim" || m.tempEvent.Type == "accuse" {
 					log = fmt.Sprintf("Processed: Player %d %ss Player %d as %s",
 						m.tempEvent.Actor, m.tempEvent.Type, m.tempEvent.Target, m.tempEvent.Result)
-				} 
+				}
 				m.feedback = log
 				logEvents = append(logEvents, log)
 				m.step = stepGameMenu
@@ -481,28 +481,28 @@ func main() {
 
 func GetVotingRecommend(entropy []model.LookaheadResult) string {
 
-    if len(entropy) == 0 {
-        return "No players to recommend."
-    }
+	if len(entropy) == 0 {
+		return "No players to recommend."
+	}
 
-    // 1. Find the lowest entropy
-    lowest := entropy[0].Entropy
-    for _, e := range entropy {
-        if e.Entropy < lowest {
-            lowest = e.Entropy
-        }
-    }
+	// 1. Find the lowest entropy
+	lowest := entropy[0].Entropy
+	for _, e := range entropy {
+		if e.Entropy < lowest {
+			lowest = e.Entropy
+		}
+	}
 
-    // 2. Collect all players with the lowest entropy
-    result := "Recommend voting these players:\n"
-    for _, e := range entropy {
-        if e.Entropy == lowest {
-            result += fmt.Sprintf(
-                "- Player %d (Entropy: %f)\n",
-                e.ID, e.Entropy,
-            )
-        }
-    }
+	// 2. Collect all players with the lowest entropy
+	result := "Recommend investigating these players:\n"
+	for _, e := range entropy {
+		if e.Entropy == lowest {
+			result += fmt.Sprintf(
+				"- Player %d (Entropy: %f)\n",
+				e.ID, e.Entropy,
+			)
+		}
+	}
 
-    return result
-} 
+	return result
+}
