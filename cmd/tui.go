@@ -58,9 +58,11 @@ const (
 	stepGameMenu           // Main Menu
 
 	// New States for "Add Event" Flow
+	stepEventType
 	stepEventActor
 	stepEventTarget
-	stepEventType
+	stepEventClaim
+	stepEventFact
 	stepEventResult
 )
 
@@ -190,8 +192,8 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				} else if selected == "Add Event" {
 					// Start the Event Input Flow
-					m.step = stepEventActor
-					m.textInput.Placeholder = "Actor ID (e.g. 0)"
+					m.step = stepEventType
+					m.textInput.Placeholder = "Type (accuse/claim/fact) "
 					m.textInput.Reset()
 
 				} else if selected == "Show Recommend" {
@@ -230,45 +232,109 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// --- D. EVENT INPUT FLOW (Actor -> Target -> Type -> Result) ---
-		if m.step >= stepEventActor && m.step <= stepEventResult {
+		// --- D. EVENT INPUT FLOW  ---
+		if m.step >= stepEventType && m.step <= stepEventResult {
 			if msg.Type == tea.KeyEnter {
 				input := m.textInput.Value()
 
-				switch m.step {
-				case stepEventActor:
-					id, _ := strconv.Atoi(input)
-					m.tempEvent.Actor = id
-					m.step = stepEventTarget
-					m.textInput.Placeholder = "Target ID (e.g. 1)"
+				switch input {
+				// --- D. EVENT INPUT FLOW (Type(accuse) -> Actor -> Target -> Result) ---
+				case "accuse":
+					switch m.step {
+					case stepEventType:
+						m.tempEvent.Type = input
+						m.step = stepEventActor
+						m.textInput.Placeholder = "Player ID (e.g. 0)"
 
-				case stepEventTarget:
-					id, _ := strconv.Atoi(input)
-					m.tempEvent.Target = id
-					m.step = stepEventType
-					m.textInput.Placeholder = "Type (accuse/claim/fact)"
+					case stepEventActor:
+						id, _ := strconv.Atoi(input)
+						m.tempEvent.Actor = id
+						m.step = stepEventTarget
+						m.textInput.Placeholder = "Player ID (e.g. 1)"
 
-				case stepEventType:
-					m.tempEvent.Type = input
-					m.step = stepEventResult
-					m.textInput.Placeholder = "Result (Werewolf/Seer/Villager)"
+					case stepEventTarget:
+						id, _ := strconv.Atoi(input)
+						m.tempEvent.Target = id
+						m.step = stepEventResult
+						m.textInput.Placeholder = "Result (Werewolf/Seer/Villager)"
 
-				case stepEventResult:
-					m.tempEvent.Result = input
+					case stepEventResult:
+						m.tempEvent.Result = input
 
-					// --- EXECUTE MOVE IN ENGINE ---
-					m.gameEngine.ProcessMove(m.tempEvent)
+						// --- EXECUTE MOVE IN ENGINE ---
+						m.gameEngine.ProcessMove(m.tempEvent)
 
-					log := fmt.Sprintf("Processed: Actor %d %s Target %d -> %s",
-						m.tempEvent.Actor, m.tempEvent.Type, m.tempEvent.Target, m.tempEvent.Result)
+						log := fmt.Sprintf("Player %d %s Player %d -> %s",
+							m.tempEvent.Actor, m.tempEvent.Type, m.tempEvent.Target, m.tempEvent.Result)
 
-					m.feedback = log
-					logEvents = append(logEvents, log) // Store log
-					// Return to menu
-					m.step = stepGameMenu
+						m.feedback = log
+						logEvents = append(logEvents, log) // Store log
+						// Return to menu
+						m.step = stepGameMenu
+					}
+					m.textInput.Reset()
+					return m, nil
+				// --- D. EVENT INPUT FLOW (Type(claim) -> Actor -> Result) ---
+				case "claim":
+					switch m.step {
+					case stepEventType:
+						m.tempEvent.Type = input
+						m.step = stepEventClaim
+						m.textInput.Placeholder = "Player ID (e.g. 0)"
+
+					case stepEventClaim:
+						id, _ := strconv.Atoi(input)
+						m.tempEvent.Actor = id
+						m.step = stepEventResult
+						m.textInput.Placeholder = "Player ID (e.g. 1)"
+
+					case stepEventResult:
+						m.tempEvent.Result = input
+
+						// --- EXECUTE MOVE IN ENGINE ---
+						m.gameEngine.ProcessMove(m.tempEvent)
+
+						log := fmt.Sprintf("Player %d %s themself as %s",
+							m.tempEvent.Actor, m.tempEvent.Type, m.tempEvent.Result)
+
+						m.feedback = log
+						logEvents = append(logEvents, log) // Store log
+						// Return to menu
+						m.step = stepGameMenu
+					}
+					m.textInput.Reset()
+					return m, nil
+				// --- D. EVENT INPUT FLOW (Type(fact) -> Target -> Result) ---
+				case "fact":
+					switch m.step {
+					case stepEventType:
+						m.tempEvent.Type = input
+						m.step = stepEventFact
+						m.textInput.Placeholder = "Player ID (e.g. 0)"
+
+					case stepEventFact:
+						id, _ := strconv.Atoi(input)
+						m.tempEvent.Target = id
+						m.step = stepEventResult
+						m.textInput.Placeholder = "Player ID (e.g. 1)"
+
+					case stepEventResult:
+						m.tempEvent.Result = input
+
+						// --- EXECUTE MOVE IN ENGINE ---
+						m.gameEngine.ProcessMove(m.tempEvent)
+
+						log := fmt.Sprintf("Player %d is %s",
+							m.tempEvent.Target, m.tempEvent.Result)
+
+						m.feedback = log
+						logEvents = append(logEvents, log) // Store log
+						// Return to menu
+						m.step = stepGameMenu
+					}
+					m.textInput.Reset()
+					return m, nil
 				}
-				m.textInput.Reset()
-				return m, nil
 			}
 			m.textInput, cmd = m.textInput.Update(msg)
 			return m, cmd
@@ -330,20 +396,21 @@ func (m bubbleModel) View() string {
 		return out.String()
 
 	// VIEW FOR EVENT INPUTS
+	case stepEventType:
+		return sectionStyle.Render("What is the action? (accuse, claim, fact)\n" + m.textInput.View())
 	case stepEventActor:
-		return sectionStyle.Render("Interaction: Who is acting? (Actor ID)\n" + m.textInput.View())
+		return sectionStyle.Render("Who is accusing? (Player ID)\n" + m.textInput.View())
 	case stepEventTarget:
 		return sectionStyle.Render(
-			fmt.Sprintf("Actor: %d\nInteraction: Who are they targeting? (Target ID)\n%s",
+			fmt.Sprintf("Actor: %d\nWho are being accused? (Player ID)\n%s",
 				m.tempEvent.Actor,
 				m.textInput.View(),
 			),
 		)
-	case stepEventType:
-		return sectionStyle.Render(
-			fmt.Sprintf("Actor: %d -> Target: %d\nInteraction: What is the action? (accuse, claim, fact)\n%s",
-				m.tempEvent.Actor, m.tempEvent.Target, m.textInput.View()),
-		)
+	case stepEventClaim:
+		return sectionStyle.Render("Who is Claiming? (Player ID)\n" + m.textInput.View())
+	case stepEventFact:
+		return sectionStyle.Render("This Player role is certainly a fact. (Player ID)\n" + m.textInput.View())
 	case stepEventResult:
 		return sectionStyle.Render(
 			fmt.Sprintf("Action: %s\nInteraction: What is the result/role? (Werewolf, Seer, Villager)\n%s",
