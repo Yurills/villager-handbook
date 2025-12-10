@@ -2,7 +2,6 @@ package engine
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/Yurills/villager-handbook/internal/model"
 )
@@ -110,47 +109,47 @@ func (e *Engine) GetPredictStat() []model.PlayerStat {
 }
 
 // provides a recommendation based on werewolf probabilities
-func (e *Engine) GetRecommend(stats []model.PlayerStat, werewolfCount int) string {
+func (e *Engine) GetRecommend(stats []model.PlayerStat) string {
 
-	if werewolfCount <= 0 {
-		return "No werewolf count configured."
-	}
+    if len(stats) == 0 {
+        return "No statistics available."
+    }
 
-	type scored struct {
-		ID     int
-		WWProb float64
-	}
+    type scored struct {
+        ID     int
+        WWProb float64
+    }
 
-	var list []scored
+    var list []scored
 
-	// Build sortable list
-	for _, ps := range stats {
-		list = append(list, scored{
-			ID:     ps.ID,
-			WWProb: ps.RoleProbabilities[model.Werewolf],
-		})
-	}
+    // Build list
+    for _, ps := range stats {
+        list = append(list, scored{
+            ID:     ps.ID,
+            WWProb: ps.RoleProbabilities[model.Werewolf],
+        })
+    }
 
-	// Sort by highest werewolf probability
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].WWProb > list[j].WWProb
-	})
+    // Find highest werewolf probability
+    highest := list[0].WWProb
+    for _, s := range list {
+        if s.WWProb > highest {
+            highest = s.WWProb
+        }
+    }
 
-	// Choose top N players
-	limit := werewolfCount
-	if limit > len(list) {
-		limit = len(list)
-	}
+    // Build recommendation output
+    result := "Recommend voting these players:\n"
+    for _, s := range list {
+        if s.WWProb == highest {
+            result += fmt.Sprintf(
+                "- Player %d (Werewolf likelihood: %.2f %%)\n",
+                s.ID,
+                s.WWProb*100,
+            )
+        }
+    }
 
-	// Build recommendation output
-	result := "Recommend voting these players:\n"
-	for i := 0; i < limit; i++ {
-		result += fmt.Sprintf(
-			"- Player %d (Werewolf likelihood: %.2f %%)\n",
-			list[i].ID,
-			list[i].WWProb*100,
-		)
-	}
-
-	return result
+    return result
 }
+ 

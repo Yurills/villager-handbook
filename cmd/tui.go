@@ -39,7 +39,6 @@ var (
 	menuItemStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#06D6A0"))
 
-
 	// Style for unselected items
 	normalItemStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#06D6A0")).
@@ -47,10 +46,10 @@ var (
 
 	// Style for the SELECTED item (looks like a button)
 	selectedItemStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#073B4C")).
-			Background(lipgloss.Color("#06D6A0")).
-			Padding(0, 1).
-			Bold(true)
+				Foreground(lipgloss.Color("#073B4C")).
+				Background(lipgloss.Color("#06D6A0")).
+				Padding(0, 1).
+				Bold(true)
 
 	feedbackStyle = lipgloss.NewStyle().
 			Padding(1, 2).
@@ -94,8 +93,8 @@ type bubbleModel struct {
 
 	// Event Cursor
 	selectionCursor int
-	typeOptions    []string
-	resultOptions  []string
+	typeOptions     []string
+	resultOptions   []string
 }
 
 // Helper struct for setup
@@ -120,10 +119,10 @@ func initialModel() bubbleModel {
 		step:       stepWelcome,
 		textInput:  ti,
 		playerInfo: PlayerInfo{},
-		menuItems:  []string{"Add Event", "Show Recommend", "Show Stat", "Show Log", "Exit"},
+		menuItems:  []string{"Add Event", "Who to Vote", "Who to Investigate", "Show Stat", "Show Log", "Exit"},
 		// Init event options
-		typeOptions:   []string{"accuse", "claim", "fact"},
-		resultOptions: []string{"Werewolf", "Seer", "Villager"},
+		typeOptions:     []string{"accuse", "claim", "fact"},
+		resultOptions:   []string{"Werewolf", "Seer", "Villager"},
 		selectionCursor: 0,
 	}
 }
@@ -218,11 +217,17 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// m.tempEvent = model.Interaction{} // Reset temp event
 					m.textInput.Reset()
 
-				} else if selected == "Show Recommend" {
-					m.gameEngine.PredictMove()
-					stats := m.gameEngine.GetPredictStat()
-					recommendations := m.gameEngine.GetRecommend(stats, m.playerInfo.WarewolfCount)
+				} else if selected == "Who to Investigate" {
+					stats := m.gameEngine.LookaheadBestCandidate()
+					var sb strings.Builder
+					sb.WriteString("=== BEST INVESTIGATE CANDIDATES ===\n")
+					recommendation := GetVotingRecommend(stats)
+					sb.WriteString(fmt.Sprintf(recommendation))
+					m.feedback = sb.String()
 
+				} else if selected == "Who to Vote" {
+					stats := m.gameEngine.GetStats()
+					recommendations := m.gameEngine.GetRecommend(stats)
 					var sb strings.Builder
 					sb.WriteString("=== RECOMMENDATIONS ===\n")
 					sb.WriteString(fmt.Sprintf("%s\n", recommendations))
@@ -230,7 +235,7 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				} else if selected == "Show Stat" {
 					// --- CALL YOUR ENGINE STATS ---
-					stats := m.gameEngine.Players
+					stats := m.gameEngine.GetStats()
 
 					// Format the stats slice into a single string for display
 					var sb strings.Builder
@@ -270,7 +275,7 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.tempEvent.Type = m.typeOptions[m.selectionCursor]
 				m.step = stepEventActor
 				// m.selectionCursor = 0
-				m.textInput.Placeholder = "Actor xdxd"
+				m.textInput.Placeholder = "..."
 				m.textInput.Reset()
 				return m, nil
 			}
@@ -295,18 +300,18 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.step = stepEventResult
 						m.selectionCursor = 0 // Reset for result menu
 					}
-				
+
 				} else if m.step == stepEventTarget {
 					id, _ := strconv.Atoi(input)
 					m.tempEvent.Target = id
 					m.step = stepEventResult
 					m.selectionCursor = 0
 				}
-				
+
 				m.textInput.Reset()
 				return m, nil
 			}
-			
+
 			// !!! CRITICAL FIX: Allow typing
 			m.textInput, cmd = m.textInput.Update(msg)
 			return m, cmd
@@ -326,8 +331,14 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.tempEvent.Result = m.resultOptions[m.selectionCursor]
 				m.gameEngine.ProcessMove(m.tempEvent)
 
-				log := fmt.Sprintf("Processed: Actor %d %s Target %d -> %s",
-					m.tempEvent.Actor, m.tempEvent.Type, m.tempEvent.Target, m.tempEvent.Result)
+				log := ""
+				if m.tempEvent.Type == "fact" {
+					log = fmt.Sprintf("Processed: Player %d is %s",
+						m.tempEvent.Target, m.tempEvent.Result)
+				} else if m.tempEvent.Type == "claim" || m.tempEvent.Type == "accuse" {
+					log = fmt.Sprintf("Processed: Player %d %ss Player %d as %s",
+						m.tempEvent.Actor, m.tempEvent.Type, m.tempEvent.Target, m.tempEvent.Result)
+				} 
 				m.feedback = log
 				logEvents = append(logEvents, log)
 				m.step = stepGameMenu
@@ -335,9 +346,13 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		}
-	
+	}
+
 	return m, nil
+}
+
+func (m bubbleModel) LookaheadBestCandidate(param any) {
+	panic("unimplemented")
 }
 
 // --- 4. VIEW (RENDER) ---
@@ -436,7 +451,7 @@ func (m bubbleModel) View() string {
 			}
 		}
 		row := lipgloss.JoinHorizontal(lipgloss.Top, opts...)
-		
+
 		// Dynamic prompt based on type
 		prompt := "What is the result/role?"
 		if m.tempEvent.Type == "claim" {
@@ -447,7 +462,7 @@ func (m bubbleModel) View() string {
 
 		return sectionStyle.Render(prompt + "\n\n" + row)
 	}
-	
+
 	return out.String()
 }
 
@@ -458,3 +473,31 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+func GetVotingRecommend(entropy []model.LookaheadResult) string {
+
+    if len(entropy) == 0 {
+        return "No players to recommend."
+    }
+
+    // 1. Find the lowest entropy
+    lowest := entropy[0].Entropy
+    for _, e := range entropy {
+        if e.Entropy < lowest {
+            lowest = e.Entropy
+        }
+    }
+
+    // 2. Collect all players with the lowest entropy
+    result := "Recommend voting these players:\n"
+    for _, e := range entropy {
+        if e.Entropy == lowest {
+            result += fmt.Sprintf(
+                "- Player %d (Entropy: %f)\n",
+                e.ID, e.Entropy,
+            )
+        }
+    }
+
+    return result
+} 
