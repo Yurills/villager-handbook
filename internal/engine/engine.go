@@ -2,6 +2,7 @@ package engine
 
 import (
 	"slices"
+	"sync"
 
 	"github.com/Yurills/villager-handbook/internal/model"
 )
@@ -14,6 +15,7 @@ type World struct {
 type Engine struct {
 	Players []int //state of players
 	Worlds  []World
+	mu      sync.RWMutex
 }
 
 type GameRule struct {
@@ -32,6 +34,10 @@ func NewEngine(players []int, rules GameRule) *Engine {
 
 func (e *Engine) ProcessMove(move model.Interaction) {
 	totalWeight := 0.0
+
+	if move.Type == "fact" && move.Result != "good" && move.Result != "evil" {
+		e.SetPlayerDead(move.Actor)
+	}
 
 	for i := range e.Worlds {
 		likelihood := GetLikelihoodWeight(e.Worlds[i].Roles, move)
@@ -58,33 +64,37 @@ func (e *Engine) GetStats() []model.PlayerStat {
 	//Outer Key: Player ID (int)
 	//Inner Key: Role
 	//Value: Accumulated weight
-	playerRoleTotals := make(map[int]map[model.Role]float64)
 
-	for _, id := range e.Players {
-		playerRoleTotals[id] = make(map[model.Role]float64)
+	playerStats := []model.PlayerStat{}
+
+	for i := range e.Players {
+		stat := e.GetPlayerRoleProbabilities(i)
+		playerStats = append(playerStats, stat)
 	}
+
+	return playerStats
+
+}
+
+func (e *Engine) GetPlayerRoleProbabilities(playerID int) model.PlayerStat {
+	roleProbabilities := make(map[model.Role]float64)
+
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 
 	for _, world := range e.Worlds {
 		if world.Weight <= 0 {
 			continue
 		}
 
-		for playerID, role := range world.Roles {
-			playerRoleTotals[playerID][role] += world.Weight
-		}
+		role := world.Roles[playerID]
+		roleProbabilities[role] += world.Weight
 	}
 
-	var playerStats []model.PlayerStat
-
-	for _, id := range e.Players {
-		stats := model.PlayerStat{
-			ID:                id,
-			RoleProbabilities: playerRoleTotals[id],
-		}
-		playerStats = append(playerStats, stats)
+	return model.PlayerStat{
+		ID:                playerID,
+		RoleProbabilities: roleProbabilities,
 	}
-	return playerStats
-
 }
 
 func (e *Engine) generateWorlds(rules GameRule) {
@@ -147,4 +157,21 @@ func (e *Engine) generateWorlds(rules GameRule) {
 	}
 
 	backtrack()
+}
+
+func (e *Engine) fork() *Engine { //use for cloning worlds to do expectimax
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	newWorlds := make([]World, len(e.Worlds))
+	copy(newWorlds, e.Worlds)
+
+	return &Engine{
+		Players: e.Players,
+		Worlds:  newWorlds,
+	}
+}
+
+func (e *Engine) SetPlayerDead(playerID int) {
+	e.Players[playerID] = -1
 }

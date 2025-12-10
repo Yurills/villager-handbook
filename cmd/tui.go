@@ -230,7 +230,7 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				} else if selected == "Show Stat" {
 					// --- CALL YOUR ENGINE STATS ---
-					stats := m.gameEngine.GetStats()
+					stats := m.gameEngine.Players
 
 					// Format the stats slice into a single string for display
 					var sb strings.Builder

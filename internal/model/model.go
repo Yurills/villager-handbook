@@ -45,3 +45,8 @@ type PlayerStat struct {
 func (ps PlayerStat) String() string {
 	return fmt.Sprintf("Player %d: %v", ps.ID, ps.RoleProbabilities)
 }
+
+type LookaheadResult struct {
+	ID      int
+	Entropy float64
+}
