@@ -39,6 +39,19 @@ var (
 	menuItemStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#06D6A0"))
 
+
+	// Style for unselected items
+	normalItemStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#06D6A0")).
+			Padding(0, 1)
+
+	// Style for the SELECTED item (looks like a button)
+	selectedItemStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#073B4C")).
+			Background(lipgloss.Color("#06D6A0")).
+			Padding(0, 1).
+			Bold(true)
+
 	feedbackStyle = lipgloss.NewStyle().
 			Padding(1, 2).
 			Border(lipgloss.RoundedBorder()).
@@ -61,8 +74,6 @@ const (
 	stepEventType
 	stepEventActor
 	stepEventTarget
-	stepEventClaim
-	stepEventFact
 	stepEventResult
 )
 
@@ -80,6 +91,11 @@ type bubbleModel struct {
 	menuCursor int
 	menuItems  []string
 	feedback   string // Displays stats or success messages
+
+	// Event Cursor
+	selectionCursor int
+	typeOptions    []string
+	resultOptions  []string
 }
 
 // Helper struct for setup
@@ -105,6 +121,10 @@ func initialModel() bubbleModel {
 		textInput:  ti,
 		playerInfo: PlayerInfo{},
 		menuItems:  []string{"Add Event", "Show Recommend", "Show Stat", "Show Log", "Exit"},
+		// Init event options
+		typeOptions:   []string{"accuse", "claim", "fact"},
+		resultOptions: []string{"Werewolf", "Seer", "Villager"},
+		selectionCursor: 0,
 	}
 }
 
@@ -192,8 +212,10 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				} else if selected == "Add Event" {
 					// Start the Event Input Flow
-					m.step = stepEventType
-					m.textInput.Placeholder = "Type (accuse/claim/fact) "
+					m.step = stepEventType // Start from Event Type
+					// m.textInput.Placeholder = "Type (accuse/claim/fact) "
+					m.selectionCursor = 0
+					// m.tempEvent = model.Interaction{} // Reset temp event
 					m.textInput.Reset()
 
 				} else if selected == "Show Recommend" {
@@ -233,113 +255,88 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// --- D. EVENT INPUT FLOW  ---
-		if m.step >= stepEventType && m.step <= stepEventResult {
+		// 1. SELECT TYPE
+		if m.step == stepEventType {
+			switch msg.String() {
+			case "left", "h": // Left
+				if m.selectionCursor > 0 {
+					m.selectionCursor--
+				}
+			case "right", "l": // Right
+				if m.selectionCursor < len(m.typeOptions)-1 {
+					m.selectionCursor++
+				}
+			case "enter":
+				m.tempEvent.Type = m.typeOptions[m.selectionCursor]
+				m.step = stepEventActor
+				// m.selectionCursor = 0
+				m.textInput.Placeholder = "Actor xdxd"
+				m.textInput.Reset()
+				return m, nil
+			}
+		}
+
+		if m.step == stepEventActor || m.step == stepEventTarget {
 			if msg.Type == tea.KeyEnter {
 				input := m.textInput.Value()
 
-				switch input {
-				// --- D. EVENT INPUT FLOW (Type(accuse) -> Actor -> Target -> Result) ---
-				case "accuse":
-					switch m.step {
-					case stepEventType:
-						m.tempEvent.Type = input
-						m.step = stepEventActor
-						m.textInput.Placeholder = "Player ID (e.g. 0)"
+				if m.step == stepEventActor {
+					id, _ := strconv.Atoi(input)
+					m.tempEvent.Actor = id
 
-					case stepEventActor:
-						id, _ := strconv.Atoi(input)
-						m.tempEvent.Actor = id
+					// --- BRANCHING LOGIC ---
+					if m.tempEvent.Type == "accuse" {
+						// Needs Target
 						m.step = stepEventTarget
-						m.textInput.Placeholder = "Player ID (e.g. 1)"
-
-					case stepEventTarget:
-						id, _ := strconv.Atoi(input)
+						m.textInput.Placeholder = "Target ID (e.g. 1)"
+					} else {
+						// Claim/Fact: Target is Actor (or self)
 						m.tempEvent.Target = id
 						m.step = stepEventResult
-						m.textInput.Placeholder = "Result (Werewolf/Seer/Villager)"
-
-					case stepEventResult:
-						m.tempEvent.Result = input
-
-						// --- EXECUTE MOVE IN ENGINE ---
-						m.gameEngine.ProcessMove(m.tempEvent)
-
-						log := fmt.Sprintf("Player %d %s Player %d -> %s",
-							m.tempEvent.Actor, m.tempEvent.Type, m.tempEvent.Target, m.tempEvent.Result)
-
-						m.feedback = log
-						logEvents = append(logEvents, log) // Store log
-						// Return to menu
-						m.step = stepGameMenu
+						m.selectionCursor = 0 // Reset for result menu
 					}
-					m.textInput.Reset()
-					return m, nil
-				// --- D. EVENT INPUT FLOW (Type(claim) -> Actor -> Result) ---
-				case "claim":
-					switch m.step {
-					case stepEventType:
-						m.tempEvent.Type = input
-						m.step = stepEventClaim
-						m.textInput.Placeholder = "Player ID (e.g. 0)"
-
-					case stepEventClaim:
-						id, _ := strconv.Atoi(input)
-						m.tempEvent.Actor = id
-						m.step = stepEventResult
-						m.textInput.Placeholder = "Player ID (e.g. 1)"
-
-					case stepEventResult:
-						m.tempEvent.Result = input
-
-						// --- EXECUTE MOVE IN ENGINE ---
-						m.gameEngine.ProcessMove(m.tempEvent)
-
-						log := fmt.Sprintf("Player %d %s themself as %s",
-							m.tempEvent.Actor, m.tempEvent.Type, m.tempEvent.Result)
-
-						m.feedback = log
-						logEvents = append(logEvents, log) // Store log
-						// Return to menu
-						m.step = stepGameMenu
-					}
-					m.textInput.Reset()
-					return m, nil
-				// --- D. EVENT INPUT FLOW (Type(fact) -> Target -> Result) ---
-				case "fact":
-					switch m.step {
-					case stepEventType:
-						m.tempEvent.Type = input
-						m.step = stepEventFact
-						m.textInput.Placeholder = "Player ID (e.g. 0)"
-
-					case stepEventFact:
-						id, _ := strconv.Atoi(input)
-						m.tempEvent.Target = id
-						m.step = stepEventResult
-						m.textInput.Placeholder = "Player ID (e.g. 1)"
-
-					case stepEventResult:
-						m.tempEvent.Result = input
-
-						// --- EXECUTE MOVE IN ENGINE ---
-						m.gameEngine.ProcessMove(m.tempEvent)
-
-						log := fmt.Sprintf("Player %d is %s",
-							m.tempEvent.Target, m.tempEvent.Result)
-
-						m.feedback = log
-						logEvents = append(logEvents, log) // Store log
-						// Return to menu
-						m.step = stepGameMenu
-					}
-					m.textInput.Reset()
-					return m, nil
+				
+				} else if m.step == stepEventTarget {
+					id, _ := strconv.Atoi(input)
+					m.tempEvent.Target = id
+					m.step = stepEventResult
+					m.selectionCursor = 0
 				}
+				
+				m.textInput.Reset()
+				return m, nil
 			}
+			
+			// !!! CRITICAL FIX: Allow typing
 			m.textInput, cmd = m.textInput.Update(msg)
 			return m, cmd
 		}
-	}
+
+		if m.step == stepEventResult {
+			switch msg.String() {
+			case "left", "h": // Left
+				if m.selectionCursor > 0 {
+					m.selectionCursor--
+				}
+			case "right", "l": // Right
+				if m.selectionCursor < len(m.resultOptions)-1 {
+					m.selectionCursor++
+				}
+			case "enter":
+				m.tempEvent.Result = m.resultOptions[m.selectionCursor]
+				m.gameEngine.ProcessMove(m.tempEvent)
+
+				log := fmt.Sprintf("Processed: Actor %d %s Target %d -> %s",
+					m.tempEvent.Actor, m.tempEvent.Type, m.tempEvent.Target, m.tempEvent.Result)
+				m.feedback = log
+				logEvents = append(logEvents, log)
+				m.step = stepGameMenu
+				return m, nil
+			}
+		}
+
+		}
+	
 	return m, nil
 }
 
@@ -396,28 +393,61 @@ func (m bubbleModel) View() string {
 		return out.String()
 
 	// VIEW FOR EVENT INPUTS
+	// --- 1. EVENT TYPE (Horizontal Selection) ---
 	case stepEventType:
-		return sectionStyle.Render("What is the action? (accuse, claim, fact)\n" + m.textInput.View())
+		var opts []string
+		for i, option := range m.typeOptions {
+			if m.selectionCursor == i {
+				opts = append(opts, selectedItemStyle.Render(option))
+			} else {
+				opts = append(opts, normalItemStyle.Render(option))
+			}
+		}
+		row := lipgloss.JoinHorizontal(lipgloss.Top, opts...)
+		return sectionStyle.Render("What is the action?\n\n" + row)
+
+	// --- 2. EVENT ACTOR (Dynamic Title) ---
 	case stepEventActor:
-		return sectionStyle.Render("Who is accusing? (Player ID)\n" + m.textInput.View())
+		title := "Who is acting?"
+		if m.tempEvent.Type == "accuse" {
+			title = "Who is Accusing? (Actor ID)"
+		} else if m.tempEvent.Type == "claim" {
+			title = "Who is Claiming? (Actor ID)"
+		} else if m.tempEvent.Type == "fact" {
+			title = "Who is this Fact about? (Actor ID)"
+		}
+		return sectionStyle.Render(title + "\n" + m.textInput.View())
+
+	// --- 3. EVENT TARGET (Only for Accuse) ---
 	case stepEventTarget:
 		return sectionStyle.Render(
-			fmt.Sprintf("Actor: %d\nWho are being accused? (Player ID)\n%s",
-				m.tempEvent.Actor,
-				m.textInput.View(),
-			),
+			fmt.Sprintf("Actor: %d\nWho are they Accusing? (Target ID)\n%s",
+				m.tempEvent.Actor, m.textInput.View()),
 		)
-	case stepEventClaim:
-		return sectionStyle.Render("Who is Claiming? (Player ID)\n" + m.textInput.View())
-	case stepEventFact:
-		return sectionStyle.Render("This Player role is certainly a fact. (Player ID)\n" + m.textInput.View())
-	case stepEventResult:
-		return sectionStyle.Render(
-			fmt.Sprintf("Action: %s\nInteraction: What is the result/role? (Werewolf, Seer, Villager)\n%s",
-				m.tempEvent.Type, m.textInput.View()),
-		)
-	}
 
+	// --- 4. EVENT RESULT (Horizontal Selection) ---
+	case stepEventResult:
+		var opts []string
+		for i, option := range m.resultOptions {
+			if m.selectionCursor == i {
+				opts = append(opts, selectedItemStyle.Render(option))
+			} else {
+				opts = append(opts, normalItemStyle.Render(option))
+			}
+		}
+		row := lipgloss.JoinHorizontal(lipgloss.Top, opts...)
+		
+		// Dynamic prompt based on type
+		prompt := "What is the result/role?"
+		if m.tempEvent.Type == "claim" {
+			prompt = fmt.Sprintf("Player %d claims to be:", m.tempEvent.Actor)
+		} else if m.tempEvent.Type == "accuse" {
+			prompt = fmt.Sprintf("Player %d accuses %d of being:", m.tempEvent.Actor, m.tempEvent.Target)
+		}
+
+		return sectionStyle.Render(prompt + "\n\n" + row)
+	}
+	
 	return out.String()
 }
 
