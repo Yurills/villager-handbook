@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/Yurills/villager-handbook/internal/model"
 )
@@ -130,25 +131,41 @@ func (e *Engine) GetRecommend(stats []model.PlayerStat) string {
         })
     }
 
-    // Find highest werewolf probability
-    highest := list[0].WWProb
+	// Find highest werewolf probability with threshold of 0.98
+	tempList := list
+	sort.SliceStable(tempList, func(i, j int) bool {
+		return tempList[i].WWProb <= tempList[j].WWProb
+	})
+
+    highest := tempList[0].WWProb
     for _, s := range list {
-        if s.WWProb > highest {
+		if s.WWProb >= 0.98 {
+			// Skip
+		} else if s.WWProb > highest {
             highest = s.WWProb
         }
     }
+    
 
     // Build recommendation output
+	totalCount := 0
+	highestCount := 0
+
     result := "Recommend voting these players:\n"
     for _, s := range list {
         if s.WWProb == highest {
+			highestCount++
             result += fmt.Sprintf(
-                "- Player %d (Werewolf likelihood: %.2f %%)\n",
+                "- Player %d (Werewolf: %.2f %%)\n",
                 s.ID,
                 s.WWProb*100,
             )
         }
+		totalCount++
     }
+	if highestCount == totalCount {
+		result = "No Recommendation Available."
+	}
 
     return result
 }

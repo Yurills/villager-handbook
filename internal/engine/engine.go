@@ -157,6 +157,11 @@ func (e *Engine) generateWorlds(rules GameRule) {
 	}
 
 	backtrack()
+	
+	for i := range e.Worlds {
+		e.Worlds[i].Weight /= float64(len(e.Worlds))
+	}
+	
 }
 
 func (e *Engine) fork() *Engine { //use for cloning worlds to do expectimax

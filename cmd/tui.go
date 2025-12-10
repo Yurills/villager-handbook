@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -240,8 +241,12 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// Format the stats slice into a single string for display
 					var sb strings.Builder
 					sb.WriteString("=== STATS ===\n")
-					for _, s := range stats {
-						sb.WriteString(fmt.Sprintf("- %s\n", s))
+					for i, s := range stats {
+						villagerProb := math.Round(s.RoleProbabilities[model.Villager]*100.0) / 100.0
+						seerProb := math.Round(s.RoleProbabilities[model.Seer]*100.0) / 100.0
+						werewolfProb := math.Round(s.RoleProbabilities[model.Werewolf]*100.0) / 100.0
+
+						sb.WriteString(fmt.Sprintf("- Player %d [Villager %.2f, Seer %.2f, Werewolf %.2f]\n", i, villagerProb, seerProb, werewolfProb))
 					}
 					m.feedback = sb.String()
 				} else if selected == "Show Log" {
