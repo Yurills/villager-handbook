@@ -21,8 +21,11 @@ const (
 
 	// Seer Strategies
 	WeightSeerTruth   = 2.0 // High confidence: Seer accuses Wolf , x2.0 is rewarded (maybe adjust?)
-	WeightSeerMistake = 0.1 // Seer accusing Good (Possible if guessing, but rare)
+	WeightSeerMistake = 0.05 // Seer accusing Good (Possible if guessing, but rare)
 	WeightSeerHiding  = 0.5 // Seer claiming Villager
+
+	// Vilagger Stupido
+	WeightVillagerLying = 0.05 //Villager lying 
 
 	// Logic Breakers
 	WeightImpossible = 0.0
@@ -110,7 +113,7 @@ func GetLikelihoodWeight(currentWorld []model.Role, interaction model.Interactio
 			case model.Seer:
 				return WeightTruth // Real Seer
 			case model.Villager:
-				return 0.1 // Villager fake claiming (Rare "Bait")
+				return WeightVillagerLying // Villager fake claiming (Rare "Bait")
 			}
 		}
 

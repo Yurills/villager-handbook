@@ -223,6 +223,7 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					var sb strings.Builder
 					sb.WriteString("=== BEST INVESTIGATE CANDIDATES ===\n")
 					recommendation := GetVotingRecommend(stats)
+					
 					sb.WriteString(fmt.Sprintf(recommendation))
 					// for i := range stats {
 					// 	sb.WriteString(fmt.Sprintf("- Player %d (Entropy: %.4f)\n",
@@ -232,6 +233,11 @@ func (m bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				} else if selected == "Who to Vote" {
 					stats := m.gameEngine.GetStats()
+					for _, s := range stats {
+						s.RoleProbabilities[model.Villager] = math.Round(s.RoleProbabilities[model.Villager]*100.0) / 100.0
+						s.RoleProbabilities[model.Seer] = math.Round(s.RoleProbabilities[model.Seer]*100.0) / 100.0
+						s.RoleProbabilities[model.Werewolf] = math.Round(s.RoleProbabilities[model.Werewolf]*100.0) / 100.0
+					}
 					recommendations := m.gameEngine.GetRecommend(stats)
 					var sb strings.Builder
 					sb.WriteString("=== RECOMMENDATIONS ===\n")
@@ -489,6 +495,11 @@ func GetVotingRecommend(entropy []model.LookaheadResult) string {
 		return "No players to recommend."
 	}
 
+	for i := range entropy {
+        temp := entropy[i].Entropy
+        entropy[i].Entropy = math.Round(temp*100.0) / 100.0
+    }
+		
 	// 1. Find the lowest entropy
 	lowest := entropy[0].Entropy
 	for _, e := range entropy {
@@ -502,7 +513,7 @@ func GetVotingRecommend(entropy []model.LookaheadResult) string {
 	for _, e := range entropy {
 		if e.Entropy == lowest {
 			result += fmt.Sprintf(
-				"- Player %d (Entropy: %f)\n",
+				"- Player %d (Entropy: %.2f)\n",
 				e.ID, e.Entropy,
 			)
 		}
