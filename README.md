@@ -5,7 +5,7 @@
 ![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Prototype-orange?style=flat-square)
 
-**Villager Handbook** is a high-performance probabilistic reasoning engine designed to solve social deduction games (such as *Werewolf*, *Mafia*, or *Among Us*) using **Bayesian State Estimation** and **Information Theory**.
+**Villager Handbook** is a high-performance probabilistic reasoning engine terminal-based application designed to solve social deduction games (such as *Werewolf*, *Mafia*, or *Among Us*) using **Bayesian State Estimation** and **Information Theory**.
 
 Unlike traditional bots that rely on static heuristics or "if-then" rule sets, this engine models the game as a **Partially Observable Markov Decision Process (POMDP)**. It maintains a dynamic belief state over thousands of parallel game configurations ("worlds") to calculate the exact probability of every player's role in real-time, adapting instantly to lies, contradictions, and complex social signaling.
 
